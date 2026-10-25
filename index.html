@@ -1,0 +1,1762 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MBU Data Science Digital Library</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        mbu: {
+                            navy: '#0f2942',
+                            blue: '#1a5f7a',
+                            gold: '#d4af37',
+                            light: '#f8fafc',
+                            accent: '#2563eb'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+        .editor-line-numbers {
+            counter-reset: line;
+        }
+        .editor-line-numbers div::before {
+            counter-increment: line;
+            content: counter(line);
+            display: inline-block;
+            width: 2rem;
+            color: #64748b;
+            text-align: right;
+            padding-right: 0.75rem;
+            user-select: none;
+        }
+        .flipbook-reader-stage {
+            background: radial-gradient(ellipse at center, #155e59 0%, #104b49 58%, #0b3739 100%);
+        }
+        .flipbook-book {
+            position: relative;
+            width: min(100%, 1100px);
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            perspective: 1800px;
+        }
+        .flipbook-spread {
+            position: relative;
+            display: flex;
+            max-width: 100%;
+            max-height: 100%;
+            transform-style: preserve-3d;
+            box-shadow: 0 18px 42px rgb(0 0 0 / 32%);
+            background: #f8fafc;
+        }
+        .flipbook-paper {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+            min-height: 0;
+            background: #fff;
+            overflow: hidden;
+        }
+        .flipbook-paper:first-child {
+            border-radius: 5px 0 0 5px;
+            box-shadow: inset -12px 0 16px -16px rgb(15 23 42 / 70%);
+        }
+        .flipbook-paper:last-child {
+            border-radius: 0 5px 5px 0;
+            box-shadow: inset 12px 0 16px -16px rgb(15 23 42 / 70%);
+        }
+        .flipbook-spread.is-single-document-page .flipbook-paper:last-child {
+            display: none;
+        }
+        .flipbook-paper canvas {
+            display: block;
+            max-width: 100%;
+            max-height: 100%;
+            background: white;
+        }
+        .flipbook-spine {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            z-index: 2;
+            width: 10px;
+            transform: translateX(-50%);
+            pointer-events: none;
+            background: linear-gradient(90deg, rgb(15 23 42 / 12%), rgb(255 255 255 / 72%) 48%, rgb(15 23 42 / 12%));
+        }
+        .flipbook-turn-sheet {
+            position: absolute;
+            inset: 0;
+            z-index: 3;
+            display: none;
+            grid-template-columns: 1fr 1fr;
+            transform-origin: center center;
+            transform-style: preserve-3d;
+            pointer-events: none;
+            transition: transform 650ms cubic-bezier(.2,.7,.2,1);
+        }
+        .flipbook-turn-sheet.is-visible { display: grid; }
+        .flipbook-turn-sheet.is-turning { transform: rotateY(-180deg); }
+        .flipbook-turn-sheet.is-turning-backward { transform: rotateY(180deg); }
+        .flipbook-turn-face {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            overflow: hidden;
+            background: white;
+            backface-visibility: hidden;
+        }
+        .flipbook-turn-face-back { transform: rotateY(180deg); }
+        .flipbook-turn-face canvas { display: block; width: 100%; height: 100%; }
+        .flipbook-reader-controls {
+            background: #0f2942;
+            color: white;
+        }
+        .flipbook-reader-controls button:focus-visible,
+        .flipbook-reader-controls a:focus-visible,
+        #flipbookClose:focus-visible {
+            outline: 3px solid #d4af37;
+            outline-offset: 2px;
+        }
+        @media (max-width: 640px) {
+            .flipbook-spread.is-single-page { width: auto !important; }
+            .flipbook-spread.is-single-page .flipbook-paper { display: none; }
+            .flipbook-spread.is-single-page .flipbook-paper:first-child { display: flex; }
+            .flipbook-spine { display: none; }
+            .flipbook-turn-sheet { grid-template-columns: 1fr; }
+            .flipbook-turn-face { grid-template-columns: 1fr; }
+            .flipbook-turn-face .flipbook-paper:last-child { display: none; }
+        }
+        .profile-id-photo {
+            display: block;
+            width: auto;
+            height: min(58vh, 460px);
+            max-width: 100%;
+        }
+        @media (max-width: 640px) {
+            .profile-id-photo {
+                height: min(58vh, 420px);
+            }
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col font-sans antialiased text-slate-800 bg-slate-50">
+
+    <!-- Toast Notification Container -->
+    <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Navigation Header -->
+    <header class="bg-mbu-navy text-white sticky top-0 z-40 shadow-md border-b border-mbu-blue/30">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex flex-wrap items-center justify-between min-h-20 py-3 gap-y-2">
+                <!-- Top Left: MBU Logo / Branding -->
+                <div class="flex items-center space-x-3 cursor-pointer" onclick="navigateTo('home')">
+                    <div class="bg-white p-2 rounded-lg shadow-inner flex items-center justify-center border-2 border-mbu-gold">
+                        <!-- MBU Monogram Emblem -->
+                        <div class="w-9 h-9 bg-mbu-navy rounded flex items-center justify-center font-bold text-mbu-gold text-xl tracking-tighter">
+                            MBU
+                        </div>
+                    </div>
+                    <div>
+                        <div class="font-extrabold text-lg sm:text-xl tracking-wide text-white flex items-center gap-2">
+                            MOHAN BABU <span class="text-mbu-gold">UNIVERSITY</span>
+                        </div>
+                        <div class="text-xs text-slate-300 font-medium tracking-wider uppercase">Department of Data Science & AI</div>
+                    </div>
+                </div>
+
+                <!-- Desktop Navigation Links -->
+                <nav class="hidden lg:flex flex-wrap items-center justify-end gap-1 font-medium text-sm">
+                    <button onclick="navigateTo('home')" id="nav-home" class="nav-btn px-2 py-2 rounded-md hover:bg-mbu-blue/40 transition">Home</button>
+                    <button onclick="navigateTo('modules')" id="nav-modules" class="nav-btn px-2 py-2 rounded-md hover:bg-mbu-blue/40 transition">Modules</button>
+                    <button onclick="navigateTo('tools')" id="nav-tools" class="nav-btn px-2 py-2 rounded-md hover:bg-mbu-blue/40 transition">Tools</button>
+                    <button onclick="navigateTo('resources')" id="nav-resources" class="nav-btn px-2 py-2 rounded-md hover:bg-mbu-blue/40 transition">Resources</button>
+                    <button onclick="navigateTo('labs')" id="nav-labs" class="nav-btn px-2 py-2 rounded-md hover:bg-mbu-blue/40 transition">Lab Experiments</button>
+                    <button onclick="navigateTo('assignments')" id="nav-assignments" class="nav-btn px-2 py-2 rounded-md hover:bg-mbu-blue/40 transition flex items-center gap-1.5 bg-mbu-blue/60 text-mbu-gold border border-mbu-gold/30">
+                        <i class="fa-solid me-1 fa-code"></i> Code Sandbox
+                    </button>
+                    <a href="resume.html" class="px-2 py-2 rounded-md hover:bg-mbu-blue/40 transition">My Resume</a>
+                    <a href="https://github.com/karishmakarishma6862-pixel" target="_blank" rel="noopener noreferrer" aria-label="GitHub profile" title="GitHub profile" class="px-2 py-2 rounded-md hover:bg-mbu-blue/40 transition"><i class="fa-brands fa-github text-lg"></i></a>
+                    <a href="https://www.linkedin.com/in/dudekula-karishma-b1319a370" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn profile" title="LinkedIn profile" class="px-2 py-2 rounded-md hover:bg-mbu-blue/40 transition"><i class="fa-brands fa-linkedin text-lg"></i></a>
+                    <button onclick="navigateTo('profile')" id="nav-profile" class="nav-btn px-2 py-2 rounded-md hover:bg-mbu-blue/40 transition flex items-center gap-2">
+                        <img id="navAvatar" src="assets/karishma-profile.jpg" alt="Karishma's profile photo" class="w-6 h-6 rounded-full object-cover border border-mbu-gold">
+                        <span id="navStudentName">Profile</span>
+                    </button>
+                </nav>
+
+                <!-- Mobile Menu Button -->
+                <div class="lg:hidden flex items-center">
+                    <button id="mobileMenuBtn" class="text-slate-300 hover:text-white p-2 rounded-md focus:outline-none">
+                        <i class="fa-solid fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mobile Navigation Menu Dropdown -->
+        <div id="mobileMenu" class="hidden lg:hidden bg-mbu-navy/95 border-t border-slate-700 px-4 pt-2 pb-4 space-y-1">
+            <button onclick="navigateTo('home')" class="block w-full text-left px-3 py-2 rounded-md hover:bg-mbu-blue/40 text-slate-200">Home</button>
+            <button onclick="navigateTo('modules')" class="block w-full text-left px-3 py-2 rounded-md hover:bg-mbu-blue/40 text-slate-200">Modules</button>
+            <button onclick="navigateTo('tools')" class="block w-full text-left px-3 py-2 rounded-md hover:bg-mbu-blue/40 text-slate-200">Tools</button>
+            <button onclick="navigateTo('resources')" class="block w-full text-left px-3 py-2 rounded-md hover:bg-mbu-blue/40 text-slate-200">Resources</button>
+            <button onclick="navigateTo('labs')" class="block w-full text-left px-3 py-2 rounded-md hover:bg-mbu-blue/40 text-slate-200">Lab Experiments</button>
+            <button onclick="navigateTo('assignments')" class="block w-full text-left px-3 py-2 rounded-md hover:bg-mbu-blue/40 text-mbu-gold font-semibold">Submit Assignment (Sandbox)</button>
+            <button onclick="navigateTo('profile')" class="block w-full text-left px-3 py-2 rounded-md hover:bg-mbu-blue/40 text-slate-200">My Profile</button>
+            <a href="resume.html" class="block w-full text-left px-3 py-2 rounded-md hover:bg-mbu-blue/40 text-slate-200">My Resume</a>
+            <a href="https://github.com/karishmakarishma6862-pixel" target="_blank" rel="noopener noreferrer" class="block w-full text-left px-3 py-2 rounded-md hover:bg-mbu-blue/40 text-slate-200"><i class="fa-brands fa-github mr-2"></i>GitHub</a>
+            <a href="https://www.linkedin.com/in/dudekula-karishma-b1319a370" target="_blank" rel="noopener noreferrer" class="block w-full text-left px-3 py-2 rounded-md hover:bg-mbu-blue/40 text-slate-200"><i class="fa-brands fa-linkedin mr-2"></i>LinkedIn</a>
+        </div>
+    </header>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- ================= HOME SECTION ================= -->
+        <section id="section-home" class="space-y-8">
+            <!-- Hero Banner -->
+            <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-mbu-navy via-slate-900 to-mbu-blue text-white shadow-xl p-8 sm:p-12 border border-slate-700">
+                <div class="absolute -right-10 -bottom-10 opacity-10 text-white pointer-events-none">
+                    <i class="fa-solid fa-brain text-[280px]"></i>
+                </div>
+                <div class="relative z-10 max-w-2xl">
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-mbu-gold/20 text-mbu-gold border border-mbu-gold/30 mb-4">
+                        <i class="fa-solid fa-graduation-cap"></i> School of Computing & AI
+                    </span>
+                    <h1 class="text-3xl sm:text-5xl font-extrabold tracking-tight mb-4 leading-tight">
+                        Data Science <span class="text-mbu-gold">Digital Library</span>
+                    </h1>
+                    <p class="text-slate-300 text-base sm:text-lg mb-8 leading-relaxed">
+                        Welcome to the centralized knowledge hub for Mohan Babu University. Access structured modules, explore data science toolkits, execute interactive assignments, and conduct lab experiments.
+                    </p>
+                    <div class="flex flex-wrap gap-4">
+                        <button onclick="navigateTo('assignments')" class="bg-mbu-gold text-mbu-navy font-bold px-6 py-3 rounded-lg hover:bg-amber-400 transition shadow-lg flex items-center gap-2">
+                            <i class="fa-solid fa-terminal"></i> Open Code Sandbox
+                        </button>
+                        <button onclick="navigateTo('modules')" class="bg-slate-800 hover:bg-slate-700 text-white font-medium px-6 py-3 rounded-lg transition border border-slate-600 flex items-center gap-2">
+                            <i class="fa-solid fa-book-open"></i> Browse Modules
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Metrics Stats Bar -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-blue-100 text-blue-600 rounded-lg">
+                        <i class="fa-solid fa-cubes text-2xl"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-slate-800" id="statModules">0</div>
+                        <div class="text-xs font-medium text-slate-500 uppercase tracking-wider">Active Modules</div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-amber-100 text-amber-600 rounded-lg">
+                        <i class="fa-solid fa-flask text-2xl"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-slate-800" id="statLabs">0</div>
+                        <div class="text-xs font-medium text-slate-500 uppercase tracking-wider">Lab Experiments</div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-emerald-100 text-emerald-600 rounded-lg">
+                        <i class="fa-solid fa-screwdriver-wrench text-2xl"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-slate-800" id="statTools">0</div>
+                        <div class="text-xs font-medium text-slate-500 uppercase tracking-wider">DS Tools Catalog</div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-purple-100 text-purple-600 rounded-lg">
+                        <i class="fa-solid fa-folder-open text-2xl"></i>
+                    </div>
+                    <div>
+                        <div class="text-2xl font-bold text-slate-800" id="statResources">0</div>
+                        <div class="text-xs font-medium text-slate-500 uppercase tracking-wider">Saved Resources</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Access Navigation Grid -->
+            <div class="space-y-4">
+                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    <i class="fa-solid fa-rocket text-mbu-blue"></i> Quick Access Hub
+                </h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div onclick="navigateTo('modules')" class="group bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-mbu-blue transition cursor-pointer">
+                        <div class="w-12 h-12 bg-blue-50 text-mbu-blue rounded-lg flex items-center justify-center text-xl mb-4 group-hover:bg-mbu-navy group-hover:text-mbu-gold transition">
+                            <i class="fa-solid fa-book-journal-whills"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-800 group-hover:text-mbu-blue transition">Course Modules</h3>
+                        <p class="text-slate-600 text-sm mt-2">Explore curriculum units from Data Visualization to Deep Learning and add custom modules.</p>
+                    </div>
+
+                    <div onclick="navigateTo('assignments')" class="group bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-mbu-blue transition cursor-pointer">
+                        <div class="w-12 h-12 bg-amber-50 text-amber-600 rounded-lg flex items-center justify-center text-xl mb-4 group-hover:bg-mbu-navy group-hover:text-mbu-gold transition">
+                            <i class="fa-solid fa-code"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-800 group-hover:text-mbu-blue transition">Interactive Assignment Editor</h3>
+                        <p class="text-slate-600 text-sm mt-2">Write, execute, and verify code live in browser with real-time terminal evaluation and auto-saving.</p>
+                    </div>
+
+                    <div onclick="navigateTo('labs')" class="group bg-white p-6 rounded-xl border border-slate-200 shadow-sm hover:shadow-md hover:border-mbu-blue transition cursor-pointer">
+                        <div class="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center text-xl mb-4 group-hover:bg-mbu-navy group-hover:text-mbu-gold transition">
+                            <i class="fa-solid fa-vial-virus"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-800 group-hover:text-mbu-blue transition">Laboratory Experiments</h3>
+                        <p class="text-slate-600 text-sm mt-2">Step-by-step practical guides, dataset schemas, and reference scripts for hands-on sessions.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= MODULES SECTION ================= -->
+        <section id="section-modules" class="hidden space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-5">
+                <div>
+                    <h2 class="text-2xl font-extrabold text-slate-900">Data Science Modules</h2>
+                    <p class="text-slate-500 text-sm mt-1">Academic curriculum modules, lecture notes, syllabus breakdowns, and video lectures.</p>
+                </div>
+                <button onclick="toggleModal('addModuleModal', true)" class="bg-mbu-blue hover:bg-mbu-navy text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow transition flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Add New Module
+                </button>
+            </div>
+
+            <!-- Modules List Grid -->
+            <div id="modulesContainer" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Dynamic Content JS Injection -->
+            </div>
+        </section>
+
+        <!-- ================= PDF FLIPBOOK VIEWER ================= -->
+        <div id="flipbookModal" class="fixed inset-0 bg-slate-950/90 z-50 hidden flex items-center justify-center p-2 sm:p-4" role="dialog" aria-modal="true" aria-labelledby="flipbookTitle">
+            <div class="bg-slate-100 rounded-xl shadow-2xl w-full max-w-7xl h-[94vh] flex flex-col overflow-hidden">
+                <div class="bg-mbu-navy text-white px-4 py-3 flex items-center justify-between gap-3">
+                    <div class="min-w-0">
+                        <h2 id="flipbookTitle" class="font-bold truncate">PDF Flipbook</h2>
+                        <p id="flipbookFileHint" class="text-xs text-slate-300 truncate"></p>
+                    </div>
+                    <button id="flipbookClose" type="button" onclick="closeFlipbook()" aria-label="Close flipbook" class="shrink-0 px-3 py-2 rounded-lg hover:bg-white/10">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+                <div id="flipbookReaderStage" class="flipbook-reader-stage flex-1 min-h-0 flex items-center justify-center p-2 sm:p-6">
+                    <div id="flipbookStatus" class="hidden text-center text-sm text-slate-700 bg-white rounded-xl p-6 shadow max-w-md" role="status"></div>
+                    <div id="flipbookBook" class="flipbook-book hidden">
+                        <div id="flipbookSpread" class="flipbook-spread">
+                            <div class="flipbook-paper"><canvas id="flipbookCanvasLeft"></canvas></div>
+                            <div class="flipbook-paper"><canvas id="flipbookCanvasRight"></canvas></div>
+                            <div class="flipbook-spine"></div>
+                        </div>
+                        <div id="flipbookTurnSheet" class="flipbook-turn-sheet" aria-hidden="true">
+                            <div class="flipbook-turn-face flipbook-turn-face-front">
+                                <div class="flipbook-paper"><canvas id="flipbookTurnFrontLeft"></canvas></div>
+                                <div class="flipbook-paper"><canvas id="flipbookTurnFrontRight"></canvas></div>
+                            </div>
+                            <div class="flipbook-turn-face flipbook-turn-face-back">
+                                <div class="flipbook-paper"><canvas id="flipbookTurnBackLeft"></canvas></div>
+                                <div class="flipbook-paper"><canvas id="flipbookTurnBackRight"></canvas></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="flipbook-reader-controls border-t border-slate-700 px-3 sm:px-4 py-3 flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+                    <button id="flipbookPrev" type="button" onclick="turnFlipbookPage(-1)" class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed" aria-label="Previous pages">
+                        <i class="fa-solid fa-arrow-left"></i>
+                    </button>
+                    <span id="flipbookPageCount" class="text-sm font-semibold min-w-32 text-center">Pages 0–0 of 0</span>
+                    <button id="flipbookNext" type="button" onclick="turnFlipbookPage(1)" class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 disabled:opacity-40 disabled:cursor-not-allowed" aria-label="Next pages">
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </button>
+                    <a id="flipbookOriginal" href="#" target="_blank" rel="noopener noreferrer" class="px-3 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-sm font-semibold"><i class="fa-solid fa-arrow-up-right-from-square mr-1"></i> Open Original PDF</a>
+                    <button type="button" onclick="closeFlipbook()" class="px-3 py-2 rounded-lg bg-mbu-gold text-mbu-navy hover:bg-amber-300 text-sm font-bold">Close Reader</button>
+                </div>
+            </div>
+        </div>
+        <input id="flipbookFileInput" type="file" accept="application/pdf,.pdf" class="hidden" onchange="handleFlipbookFile(event)">
+
+        <!-- ================= TOOLS SECTION ================= -->
+        <section id="section-tools" class="hidden space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-5">
+                <div>
+                    <h2 class="text-2xl font-extrabold text-slate-900">Data Science Toolkit</h2>
+                    <p class="text-slate-500 text-sm mt-1">Industry standard software, libraries, and frameworks curated for students.</p>
+                </div>
+                <!-- Category Filter Buttons -->
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="filterTools('All')" class="tool-filter-btn active bg-mbu-navy text-white text-xs px-3 py-1.5 rounded-full font-medium transition">All</button>
+                    <button onclick="filterTools('Programming')" class="tool-filter-btn bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs px-3 py-1.5 rounded-full font-medium transition">Programming</button>
+                    <button onclick="filterTools('ML/DL')" class="tool-filter-btn bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs px-3 py-1.5 rounded-full font-medium transition">ML / DL</button>
+                    <button onclick="filterTools('Visualization')" class="tool-filter-btn bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs px-3 py-1.5 rounded-full font-medium transition">Visualization</button>
+                    <button onclick="filterTools('Big Data')" class="tool-filter-btn bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs px-3 py-1.5 rounded-full font-medium transition">Big Data</button>
+                </div>
+            </div>
+
+            <!-- Tools Grid -->
+            <div id="toolsContainer" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Dynamic Tools Cards Injected Here -->
+            </div>
+        </section>
+
+        <!-- ================= RESOURCES SECTION ================= -->
+        <section id="section-resources" class="hidden space-y-6">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-200 pb-5">
+                <div>
+                    <h2 class="text-2xl font-extrabold text-slate-900">Learning Resources</h2>
+                    <p class="text-slate-500 text-sm mt-1">E-books, research publications, datasets, and video lectures.</p>
+                </div>
+                <button onclick="toggleModal('addResourceModal', true)" class="bg-mbu-blue hover:bg-mbu-navy text-white px-4 py-2.5 rounded-lg text-sm font-semibold shadow transition flex items-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Add Resource
+                </button>
+            </div>
+
+            <!-- Resources Grid Container -->
+            <div id="resourcesContainer" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Dynamic Content -->
+            </div>
+        </section>
+
+        <!-- ================= LAB EXPERIMENTS SECTION ================= -->
+        <section id="section-labs" class="hidden space-y-6">
+            <div class="border-b border-slate-200 pb-5">
+                <h2 class="text-2xl font-extrabold text-slate-900">Laboratory Experiments</h2>
+                <p class="text-slate-500 text-sm mt-1">Official Data Science practical syllabus with aims, datasets, and sample executions.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <!-- Lab Experiment Sidebar List -->
+                <div class="lg:col-span-1 bg-white border border-slate-200 rounded-xl p-4 shadow-sm h-fit">
+                    <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Experiments List</h3>
+                    <div id="labList" class="space-y-2">
+                        <!-- Dynamic Sidebar buttons -->
+                    </div>
+                </div>
+
+                <!-- Lab Experiment Detailed View Container -->
+                <div class="lg:col-span-3 bg-white border border-slate-200 rounded-xl p-6 shadow-sm" id="labDetailView">
+                    <!-- Dynamic Lab Content Injected -->
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= ASSIGNMENT / CODE SANDBOX SECTION ================= -->
+        <section id="section-assignments" class="hidden space-y-6">
+            <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+                <div class="mb-4">
+                    <h3 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-file-pdf text-red-600"></i> Assignment PDFs
+                    </h3>
+                    <p class="text-sm text-slate-500 mt-1">Open or download the static assignment documents.</p>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <a href="assignments/11.pdf" target="_blank" rel="noopener noreferrer" class="group rounded-lg border border-slate-200 p-4 hover:border-mbu-blue hover:shadow-sm transition">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-file-pdf text-2xl text-red-600"></i>
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-800 group-hover:text-mbu-blue">Assignment 11</h4>
+                                <p class="text-xs text-slate-500">Open PDF</p>
+                            </div>
+                            <i class="fa-solid fa-arrow-up-right-from-square ml-auto text-xs text-slate-400"></i>
+                        </div>
+                    </a>
+                    <a href="assignments/21.pdf" target="_blank" rel="noopener noreferrer" class="group rounded-lg border border-slate-200 p-4 hover:border-mbu-blue hover:shadow-sm transition">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-file-pdf text-2xl text-red-600"></i>
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-800 group-hover:text-mbu-blue">Assignment 21</h4>
+                                <p class="text-xs text-slate-500">Open PDF</p>
+                            </div>
+                            <i class="fa-solid fa-arrow-up-right-from-square ml-auto text-xs text-slate-400"></i>
+                        </div>
+                    </a>
+                    <a href="assignments/31.pdf" target="_blank" rel="noopener noreferrer" class="group rounded-lg border border-slate-200 p-4 hover:border-mbu-blue hover:shadow-sm transition">
+                        <div class="flex items-center gap-3">
+                            <i class="fa-solid fa-file-pdf text-2xl text-red-600"></i>
+                            <div>
+                                <h4 class="text-sm font-bold text-slate-800 group-hover:text-mbu-blue">Assignment 31</h4>
+                                <p class="text-xs text-slate-500">Open PDF</p>
+                            </div>
+                            <i class="fa-solid fa-arrow-up-right-from-square ml-auto text-xs text-slate-400"></i>
+                        </div>
+                    </a>
+                </div>
+            </div>
+
+            <div class="border-b border-slate-200 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-extrabold text-slate-900 flex items-center gap-2">
+                        <i class="fa-solid fa-code text-mbu-blue"></i> Interactive Assignment Sandbox
+                    </h2>
+                    <p class="text-slate-500 text-sm mt-1">Execute Python / Data Science tasks online, evaluate results, and submit solutions directly.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <label for="assignmentSelect" class="text-xs font-bold text-slate-600 uppercase">Select Task:</label>
+                    <select id="assignmentSelect" onchange="loadAssignmentProblem()" class="bg-white border border-slate-300 rounded-lg text-sm px-3 py-2 font-semibold text-slate-800 shadow-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                        <!-- Options filled via JS -->
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <!-- Problem Statement Column -->
+                <div class="lg:col-span-5 space-y-4">
+                    <div class="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+                        <div class="flex items-center justify-between border-b pb-3">
+                            <span id="assignmentBadge" class="bg-blue-100 text-blue-800 text-xs font-bold px-2.5 py-1 rounded">Assignment #</span>
+                            <span id="assignmentStatus" class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600">Not Submitted</span>
+                        </div>
+                        <h3 id="assignmentTitle" class="text-lg font-bold text-slate-900">--</h3>
+                        <p id="assignmentDesc" class="text-sm text-slate-600 leading-relaxed">--</p>
+                        
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                            <h4 class="text-xs font-bold text-slate-500 uppercase mb-2">Expected Logic / Output Specs:</h4>
+                            <ul id="assignmentRequirements" class="text-xs text-slate-700 space-y-1.5 list-disc list-inside">
+                                <!-- Instructions -->
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interactive Code Sandbox Column -->
+                <div class="lg:col-span-7 flex flex-col space-y-4">
+                    <div class="bg-slate-900 rounded-xl shadow-lg border border-slate-800 overflow-hidden flex flex-col h-full">
+                        <!-- Sandbox Top Toolbar -->
+                        <div class="bg-slate-800 px-4 py-2.5 flex items-center justify-between border-b border-slate-700">
+                            <div class="flex items-center space-x-2">
+                                <span class="w-3 h-3 rounded-full bg-red-500 inline-block"></span>
+                                <span class="w-3 h-3 rounded-full bg-yellow-500 inline-block"></span>
+                                <span class="w-3 h-3 rounded-full bg-green-500 inline-block"></span>
+                                <span class="text-xs font-mono text-slate-400 ml-2">solution.py</span>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="resetAssignmentCode()" class="text-slate-400 hover:text-white text-xs px-2 py-1 rounded hover:bg-slate-700 transition">
+                                    <i class="fa-solid fa-rotate-left me-1"></i> Reset Code
+                                </button>
+                                <button onclick="runCode()" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-1.5 rounded transition flex items-center gap-1">
+                                    <i class="fa-solid fa-play text-xs"></i> Run Code
+                                </button>
+                                <button onclick="submitAssignment()" class="bg-mbu-blue hover:bg-blue-600 text-white text-xs font-semibold px-3 py-1.5 rounded transition flex items-center gap-1 border border-mbu-gold/40">
+                                    <i class="fa-solid fa-cloud-arrow-up text-xs"></i> Submit & Save
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Code Editor Area -->
+                        <div class="relative flex-grow min-h-[280px] bg-slate-900 text-emerald-400 font-mono text-sm p-4">
+                            <textarea id="codeEditor" class="w-full h-full bg-transparent text-slate-100 font-mono text-sm focus:outline-none resize-none leading-relaxed" spellcheck="false"></textarea>
+                        </div>
+
+                        <!-- Live Terminal / Console Output -->
+                        <div class="bg-slate-950 border-t border-slate-800 p-4 font-mono text-xs">
+                            <div class="flex items-center justify-between text-slate-500 mb-2 border-b border-slate-800 pb-1">
+                                <span class="uppercase font-bold tracking-wider text-[10px]">Console Output</span>
+                                <button onclick="clearConsole()" class="hover:text-slate-300"><i class="fa-solid fa-trash-can"></i> Clear</button>
+                            </div>
+                            <pre id="consoleOutput" class="text-slate-300 whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">Click "Run Code" to execute code script...</pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================= PROFILE SECTION ================= -->
+        <section id="section-profile" class="hidden space-y-6">
+            <div class="border-b border-slate-200 pb-5">
+                <h2 class="text-2xl font-extrabold text-slate-900">Student Profile</h2>
+                <p class="text-slate-500 text-sm mt-1">Manage your academic identity details and library activity record.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                <!-- Profile Card -->
+                <div class="bg-emerald-50 border border-emerald-100 rounded-xl shadow-sm overflow-hidden">
+                    <div class="h-28 bg-gradient-to-r from-teal-800 to-teal-600"></div>
+                    <div class="px-6 pb-6">
+                    <div class="relative -mt-14 mb-3">
+                        <img id="profileImageDisplay" src="assets/karishma-profile.jpg" alt="Karishma Dudekula's student profile" class="w-24 h-24 rounded-xl object-cover border-4 border-white shadow">
+                        <label for="photoUpload" class="absolute bottom-0 right-0 bg-mbu-gold hover:bg-amber-400 text-mbu-navy p-2 rounded-full cursor-pointer shadow transition" title="Upload Photo">
+                            <i class="fa-solid fa-camera"></i>
+                        </label>
+                        <input type="file" id="photoUpload" class="hidden" accept="image/*" onchange="handlePhotoUpload(event)">
+                    </div>
+                    <h3 id="profileNameDisplay" class="text-xl font-extrabold text-slate-800">--</h3>
+
+                    <div class="w-full border-t border-emerald-200 mt-5 pt-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+                        <div class="rounded-xl border border-emerald-100 bg-white/70 p-3">
+                            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Institution</span>
+                            <span class="mt-1 block text-sm font-semibold text-slate-800">Mohan Babu University (MBU)</span>
+                        </div>
+                        <div class="rounded-xl border border-emerald-100 bg-white/70 p-3">
+                            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Roll / Student ID</span>
+                            <span id="profileRollDisplay" class="mt-1 block text-sm font-semibold text-slate-800">--</span>
+                        </div>
+                        <div class="rounded-xl border border-emerald-100 bg-white/70 p-3">
+                            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Current Semester</span>
+                            <span id="profileSemDisplay" class="mt-1 block text-sm font-semibold text-slate-800">Not provided</span>
+                        </div>
+                        <div class="rounded-xl border border-emerald-100 bg-white/70 p-3">
+                            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Faculty Name</span>
+                            <span id="profileFacultyDisplay" class="mt-1 block text-sm font-semibold text-slate-800">Not provided</span>
+                        </div>
+                        <div class="rounded-xl border border-emerald-100 bg-white/70 p-3">
+                            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Degree</span>
+                            <span id="profileDegreeDisplay" class="mt-1 block text-sm font-semibold text-slate-800">B.Tech</span>
+                        </div>
+                        <div class="rounded-xl border border-emerald-100 bg-white/70 p-3">
+                            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Branch</span>
+                            <span id="profileBranchDisplay" class="mt-1 block text-sm font-semibold text-slate-800">Computer Science &amp; Engineering</span>
+                        </div>
+                        <div class="rounded-xl border border-emerald-100 bg-white/70 p-3">
+                            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Specialization</span>
+                            <span id="profileSpecializationDisplay" class="mt-1 block text-sm font-semibold text-slate-800">Data Science</span>
+                        </div>
+                        <div class="rounded-xl border border-emerald-100 bg-white/70 p-3">
+                            <span class="block text-[10px] font-bold uppercase tracking-wider text-slate-500">Section</span>
+                            <span id="profileSectionDisplay" class="mt-1 block text-sm font-semibold text-slate-800">Not provided</span>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+
+                <div class="bg-emerald-50 border border-emerald-100 rounded-xl p-5 sm:p-6 shadow-sm">
+                    <h3 class="text-lg font-bold text-slate-800 mb-4">College ID Card</h3>
+                    <div class="rounded-xl border border-emerald-100 bg-white/70 p-4 flex items-center justify-center">
+                        <img src="assets/karishma-id-card.jpg" alt="Full Mohan Babu University student ID card" class="profile-id-photo rounded-lg object-contain shadow-lg">
+                    </div>
+                    <p class="mt-3 text-xs text-slate-500">Your full student ID card is shown here.</p>
+                </div>
+
+                <details class="lg:col-span-2 bg-white border border-slate-200 rounded-xl shadow-sm">
+                    <summary class="cursor-pointer list-none px-6 py-5 font-bold text-slate-800 flex items-center justify-between gap-4">
+                        <span><i class="fa-solid fa-pen-to-square text-mbu-blue mr-2"></i>Edit Profile Information</span>
+                        <i class="fa-solid fa-chevron-down text-xs text-slate-400"></i>
+                    </summary>
+                    <div class="px-6 pb-6">
+                    <form id="profileForm" onsubmit="saveProfile(event)" class="space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Full Name</label>
+                                <input type="text" id="inputName" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Roll / ID Number</label>
+                                <input type="text" id="inputRoll" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Email Address</label>
+                                <input type="email" id="inputEmail" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Semester</label>
+                                <select id="inputSem" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                                                    <option value="">Select semester</option>
+                                                    <option value="Semester IV">Semester IV</option>
+                                    <option value="Semester V">Semester V</option>
+                                    <option value="Semester VI">Semester VI</option>
+                                    <option value="Semester VII">Semester VII</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Degree</label>
+                                <input type="text" id="inputDegree" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Branch</label>
+                                <input type="text" id="inputBranch" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Specialization</label>
+                                <input type="text" id="inputSpecialization" required class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Faculty Name</label>
+                                <input type="text" id="inputFaculty" placeholder="Enter faculty name" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Section</label>
+                                <input type="text" id="inputSection" placeholder="Enter section" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                            </div>
+                        </div>
+
+                        <div class="pt-3 flex justify-end">
+                            <button type="submit" class="bg-mbu-navy hover:bg-mbu-blue text-white px-6 py-2.5 rounded-lg text-sm font-semibold shadow transition">
+                                <i class="fa-solid fa-floppy-disk me-1"></i> Save Changes
+                            </button>
+                        </div>
+                    </form>
+                    </div>
+                </details>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 text-xs py-6 border-t border-slate-800 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-2">
+                <span class="font-bold text-white">Mohan Babu University</span>
+                <span>&bull; Digital Library for Data Science</span>
+            </div>
+            <p>&copy; 2026 MBU Department of Data Science. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- MODAL: ADD MODULE -->
+    <div id="addModuleModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-lg font-bold text-slate-900">Add New Module</h3>
+                <button onclick="toggleModal('addModuleModal', false)" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="saveModule(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Module Title</label>
+                    <input type="text" id="modTitle" required placeholder="e.g. Deep Learning & Neural Networks" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Category</label>
+                    <select id="modCategory" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                        <option>Core Data Science</option>
+                        <option>Machine Learning</option>
+                        <option>Visualization</option>
+                        <option>Big Data Analytics</option>
+                        <option>Artificial Intelligence</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Description</label>
+                    <textarea id="modDesc" rows="3" required placeholder="Brief overview of learning outcomes..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue"></textarea>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Document/Resource URL</label>
+                    <input type="url" id="modLink" required placeholder="https://..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">YouTube Link (optional)</label>
+                    <input type="url" id="modYoutube" placeholder="https://www.youtube.com/watch?v=..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="toggleModal('addModuleModal', false)" class="px-4 py-2 text-sm text-slate-600 font-semibold hover:bg-slate-100 rounded-lg">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-sm bg-mbu-blue text-white font-semibold rounded-lg hover:bg-mbu-navy transition">Save Module</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD RESOURCE -->
+    <div id="addResourceModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h3 class="text-lg font-bold text-slate-900">Add Learning Resource</h3>
+                <button onclick="toggleModal('addResourceModal', false)" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+            </div>
+            <form onsubmit="saveResource(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Resource Title</label>
+                    <input type="text" id="resTitle" required placeholder="e.g. Pattern Recognition Reference PDF" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Resource Type</label>
+                    <select id="resType" class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                        <option value="Textbook">Textbook / E-Book</option>
+                        <option value="Research Paper">Research Paper</option>
+                        <option value="Video Tutorial">Video Tutorial</option>
+                        <option value="Dataset">Dataset</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">URL / Link</label>
+                    <input type="url" id="resUrl" required placeholder="https://..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Description</label>
+                    <textarea id="resDesc" rows="3" required placeholder="Short description of the resource contents..." class="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-mbu-blue"></textarea>
+                </div>
+                <div class="flex justify-end gap-2 pt-2">
+                    <button type="button" onclick="toggleModal('addResourceModal', false)" class="px-4 py-2 text-sm text-slate-600 font-semibold hover:bg-slate-100 rounded-lg">Cancel</button>
+                    <button type="submit" class="px-4 py-2 text-sm bg-mbu-blue text-white font-semibold rounded-lg hover:bg-mbu-navy transition">Save Resource</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- JAVASCRIPT APPLICATION LOGIC -->
+    <script>
+        /* ================= INITIAL DATASETS ================= */
+        const defaultProfile = {
+            name: 'Karishma Dudekula',
+            roll: '24102A030145',
+            email: 'karishmakarishma6862@gmail.com',
+            semester: '',
+            program: 'B.Tech CSE (Data Science)',
+            department: 'Computer Science & Engineering (Data Science)',
+            faculty: '',
+            section: '',
+            degree: 'B.Tech',
+            branch: 'Computer Science & Engineering',
+            specialization: 'Data Science',
+            photo: 'assets/karishma-profile.jpg'
+        };
+
+        const defaultModules = [
+            { id: 1, title: 'Introduction to Data Science', category: 'Core Data Science', description: 'Foundations of data science, problem framing, data lifecycle, and the role of AI across modern analytics workflows.', link: 'pdfs/module-1.pdf', youtube: 'https://www.youtube.com/watch?v=FsSrzmRawUg' },
+            { id: 2, title: 'Data Collection & Preprocessing', category: 'Core Data Science', description: 'Techniques for gathering structured and unstructured data, cleaning issues, handling missing values, and preparing datasets for analysis.', link: 'pdfs/module-2.pdf', youtube: 'https://www.youtube.com/watch?v=RWgG8fvwKh0' },
+            { id: 3, title: 'Exploratory Data Analysis & Visualization', category: 'Visualization', description: 'Summarizing trends, visual inspection, feature understanding, and building compelling charts with Python libraries.', link: 'pdfs/module-3.pdf', youtube: 'https://www.youtube.com/watch?v=-o3AxdVcUtQ' },
+            { id: 4, title: 'Statistics & Machine Learning', category: 'Machine Learning', description: 'Probability, statistical inference, model evaluation, and predictive learning techniques for practical data science solutions.', link: 'pdfs/module-4.pdf', youtube: 'https://www.youtube.com/watch?v=8ZI55Inh1_A' },
+            { id: 5, title: 'Advanced Data Science Applications', category: 'Artificial Intelligence', description: 'Real-world applications of data science in forecasting, NLP, recommendation systems, and intelligent decision support systems.', link: 'pdfs/module-5.pdf', youtube: 'https://www.youtube.com/watch?v=l5lFXSqRv4s' }
+        ];
+
+        const defaultTools = [
+            { name: 'Jupyter Notebook', category: 'Programming', icon: 'fa-book-open text-orange-500', desc: 'Interactive web application for creating and sharing computational documents.' },
+            { name: 'Pandas', category: 'Programming', icon: 'fa-table text-blue-600', desc: 'Fast, powerful, and flexible open-source data analysis and manipulation tool.' },
+            { name: 'NumPy', category: 'Programming', icon: 'fa-square-root-variable text-sky-500', desc: 'Fundamental package for scientific computing with multi-dimensional arrays.' },
+            { name: 'Scikit-Learn', category: 'ML/DL', icon: 'fa-diagram-project text-amber-600', desc: 'Simple and efficient tools for predictive data analysis and machine learning.' },
+            { name: 'PyTorch', category: 'ML/DL', icon: 'fa-fire text-red-500', desc: 'Open source machine learning framework for deep neural networks.' },
+            { name: 'TensorFlow', category: 'ML/DL', icon: 'fa-cubes text-orange-600', desc: 'End-to-end open source platform for machine learning and AI research.' },
+            { name: 'Tableau', category: 'Visualization', icon: 'fa-chart-pie text-indigo-600', desc: 'Visual analytics platform transforming data into actionable insights.' },
+            { name: 'Power BI', category: 'Visualization', icon: 'fa-chart-column text-yellow-500', desc: 'Interactive data visualization and business intelligence tool suite.' },
+            { name: 'Apache Spark', category: 'Big Data', icon: 'fa-bolt text-orange-500', desc: 'Multi-language engine for executing data engineering and stream processing.' }
+        ];
+
+        const defaultResources = [
+            { id: 1, title: 'Introduction to Statistical Learning', type: 'Textbook', url: 'https://www.statlearning.com/', desc: 'Essential textbook covering key machine learning topics with practical applications.' },
+            { id: 2, title: 'Deep Learning Book by Goodfellow', type: 'Textbook', url: 'https://www.deeplearningbook.org/', desc: 'Comprehensive research level textbook on mathematical foundations of deep learning.' },
+            { id: 3, title: 'UCI Machine Learning Repository', type: 'Dataset', url: 'https://archive.ics.uci.edu/', desc: 'Standard domain benchmark datasets for empirical machine learning experiments.' },
+            { id: 4, title: 'MIT 6.S191 Introduction to Deep Learning', type: 'Video Tutorial', url: 'http://introtodeeplearning.com/', desc: 'Official lecture series from MIT on deep neural architectures.' }
+        ];
+
+        const labExperiments = [
+            {
+                id: 1,
+                title: 'Lab 1: Exploratory Data Analysis & Data Cleaning',
+                objective: 'Perform missing value imputation, outlier detection, and statistical summaries on a housing dataset using Pandas.',
+                dataset: 'housing_prices.csv (1000 rows, 12 features)',
+                code: `# Exploratory Data Analysis Template
+import pandas as pd
+import numpy as np
+
+# Sample mock dataset representation
+data = {
+    'Price': [250000, 300000, np.nan, 450000, 1200000],
+    'Bedrooms': [3, 4, 2, 4, 5],
+    'Age': [10, 5, 15, np.nan, 2]
+}
+df = pd.DataFrame(data)
+
+# Impute missing numerical values with median
+df['Price'].fillna(df['Price'].median(), inplace=True)
+df['Age'].fillna(df['Age'].mean(), inplace=True)
+
+print("--- Cleaned DataFrame Summary ---")
+print(df.describe())`
+            },
+            {
+                id: 2,
+                title: 'Lab 2: Supervised Linear Regression Model',
+                objective: 'Build, fit, and evaluate a Ordinary Least Squares Linear Regression model to predict test outcomes.',
+                dataset: 'student_performance.csv',
+                code: `# Linear Regression Implementation
+import numpy as np
+
+# Independent Feature X (Hours Studied) & Dependent Y (Exam Score)
+X = np.array([1, 2, 3, 4, 5])
+Y = np.array([50, 55, 65, 70, 85])
+
+# Calculate slope (m) and intercept (c)
+m, c = np.polyfit(X, Y, 1)
+
+print(f"Trained Slope (m): {m:.2f}")
+print(f"Trained Intercept (c): {c:.2f}")
+
+# Predict score for 6 hours of study
+pred = m * 6 + c
+print(f"Predicted Score for 6 Hours Study: {pred:.2f}")`
+            },
+            {
+                id: 3,
+                title: 'Lab 3: K-Means Clustering for Market Segmentation',
+                objective: 'Implement Unsupervised K-Means clustering algorithm to segment customer purchasing behavior patterns.',
+                dataset: 'customer_data.csv',
+                code: `# K-Means Clustering Logic Demo
+import numpy as np
+
+# Sample customer centroid assignment iteration
+points = np.array([[1, 2], [1, 4], [1, 0], [10, 2], [10, 4], [10, 0]])
+centroids = np.array([[1, 1], [10, 1]])
+
+def assign_clusters(pts, ctrs):
+    clusters = []
+    for p in pts:
+        distances = [np.linalg.norm(p - c) for c in ctrs]
+        clusters.append(np.argmin(distances))
+    return np.array(clusters)
+
+assigned = assign_clusters(points, centroids)
+print("Point Assignments (Cluster Index 0 or 1):")
+print(assigned)`
+            }
+        ];
+
+        const assignmentsList = [
+            {
+                id: 'assign-1',
+                badge: 'Assignment 1',
+                title: 'Data Cleaning & Feature Scaling',
+                desc: 'Write a script that normalizes a numerical feature array using Min-Max scaling technique.',
+                reqs: [
+                    'Input list: [10, 25, 40, 60, 90]',
+                    'Min-Max Formula: (x - min) / (max - min)',
+                    'Print the scaled floating values rounded to 3 decimal places.'
+                ],
+                starterCode: `# Assignment 1: Min-Max Scaling Implementation
+def min_max_scale(data):
+    # Write your normalization logic here
+    min_val = min(data)
+    max_val = max(data)
+    
+    scaled = [(x - min_val) / (max_val - min_val) for x in data]
+    return [round(val, 3) for val in scaled]
+
+# Test Data
+numbers = [10, 25, 40, 60, 90]
+result = min_max_scale(numbers)
+
+print("Original Data:", numbers)
+print("Scaled Data:", result)`
+            },
+            {
+                id: 'assign-2',
+                badge: 'Assignment 2',
+                title: 'Decision Tree Splitting Logic',
+                desc: 'Compute the Gini Impurity for a binary classification dataset split.',
+                reqs: [
+                    'Given sample counts: Class A = 3, Class B = 7 (Total = 10)',
+                    'Gini Formula: 1 - sum(p_i^2)',
+                    'Output the resulting Gini score.'
+                ],
+                starterCode: `# Assignment 2: Calculate Gini Impurity
+def calculate_gini(class_a_count, class_b_count):
+    total = class_a_count + class_b_count
+    if total == 0:
+        return 0.0
+        
+    p_a = class_a_count / total
+    p_b = class_b_count / total
+    
+    gini = 1.0 - (p_a**2 + p_b**2)
+    return round(gini, 4)
+
+# Execute test case
+gini_score = calculate_gini(3, 7)
+print("Calculated Gini Impurity:", gini_score)`
+            }
+        ];
+
+        /* ================= APP STATE MANAGEMENT ================= */
+        const savedModules = JSON.parse(localStorage.getItem('mbu_modules')) || [];
+        const customModules = savedModules.filter(existing =>
+            !defaultModules.some(module => String(module.id) === String(existing.id) || module.title === existing.title)
+        );
+        const mergedModules = defaultModules.concat(customModules);
+        if (JSON.stringify(mergedModules) !== JSON.stringify(savedModules)) {
+            localStorage.setItem('mbu_modules', JSON.stringify(mergedModules));
+        }
+
+        const savedProfile = JSON.parse(localStorage.getItem('mbu_profile')) || {};
+        let state = {
+            profile: { ...defaultProfile, ...savedProfile },
+            modules: mergedModules.length ? mergedModules : defaultModules,
+            tools: defaultTools,
+            resources: JSON.parse(localStorage.getItem('mbu_resources')) || defaultResources,
+            assignments: JSON.parse(localStorage.getItem('mbu_assignments')) || {},
+            activeLabIndex: 0,
+            activeAssignmentId: 'assign-1'
+        };
+
+        /* ================= APPLICATION INITIALIZATION ================= */
+        window.onload = function() {
+            if (window.pdfjsLib) {
+                pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
+            renderProfile();
+            renderModules();
+            renderTools('All');
+            renderResources();
+            renderLabs();
+            initAssignments();
+            updateStats();
+            initPdfReaderEvents();
+
+            // Mobile Menu Toggle listener
+            document.getElementById('mobileMenuBtn').addEventListener('click', () => {
+                const m = document.getElementById('mobileMenu');
+                m.classList.toggle('hidden');
+            });
+        };
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `px-4 py-3 rounded-lg shadow-lg text-white font-medium text-sm flex items-center space-x-2 transition-all transform duration-300 translate-y-2 pointer-events-auto ${type === 'success' ? 'bg-emerald-600' : 'bg-mbu-navy'}`;
+            toast.innerHTML = `<i class="fa-solid ${type === 'success' ? 'fa-circle-check' : 'fa-circle-info'}"></i> <span>${message}</span>`;
+            
+            const container = document.getElementById('toastContainer');
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('opacity-0', '-translate-y-2');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        /* ================= NAVIGATION CONTROLLER ================= */
+        function navigateTo(sectionId) {
+            const sections = ['home', 'modules', 'tools', 'resources', 'labs', 'assignments', 'profile'];
+            sections.forEach(id => {
+                const el = document.getElementById(`section-${id}`);
+                const navBtn = document.getElementById(`nav-${id}`);
+                if (el) el.classList.add('hidden');
+                if (navBtn) {
+                    navBtn.classList.remove('bg-mbu-blue', 'text-white');
+                    if (id !== 'assignments') navBtn.classList.add('hover:bg-mbu-blue/40');
+                }
+            });
+
+            const activeSection = document.getElementById(`section-${sectionId}`);
+            if (activeSection) activeSection.classList.remove('hidden');
+
+            const activeNav = document.getElementById(`nav-${sectionId}`);
+            if (activeNav && sectionId !== 'assignments') {
+                activeNav.classList.add('bg-mbu-blue', 'text-white');
+            }
+
+            // Hide mobile dropdown menu after selection
+            document.getElementById('mobileMenu').classList.add('hidden');
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function updateStats() {
+            document.getElementById('statModules').innerText = state.modules.length;
+            document.getElementById('statLabs').innerText = labExperiments.length;
+            document.getElementById('statTools').innerText = state.tools.length;
+            document.getElementById('statResources').innerText = state.resources.length;
+        }
+
+        /* ================= MODULES LOGIC ================= */
+        function renderModules() {
+            const container = document.getElementById('modulesContainer');
+            container.innerHTML = state.modules.map(m => `
+                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition flex flex-col justify-between">
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-blue-50 text-mbu-blue border border-blue-200">${m.category}</span>
+                            <i class="fa-solid fa-book-bookmark text-slate-300"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-base mb-2">${m.title}</h3>
+                        <p class="text-xs text-slate-600 line-clamp-3 leading-relaxed mb-4">${m.description}</p>
+                        ${m.youtube ? `<div class="mb-4 rounded-lg border border-red-100 bg-red-50/70 px-3 py-2.5 flex items-center justify-between gap-3">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <i class="fa-brands fa-youtube text-red-600"></i>
+                                <span class="text-xs font-semibold text-slate-700">Video lecture</span>
+                            </div>
+                            <a href="${m.youtube}" target="_blank" rel="noopener noreferrer" class="shrink-0 text-xs font-semibold text-red-600 hover:text-red-700 flex items-center gap-1">
+                                Watch on YouTube <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                            </a>
+                        </div>` : ''}
+                    </div>
+                    <div class="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                        <button type="button" onclick="openModuleFlipbook('${String(m.id).replace(/'/g, "\\'")}')" class="text-xs font-semibold text-mbu-blue hover:text-mbu-navy flex items-center gap-1">
+                            <i class="fa-solid fa-book-open"></i> Read Flipbook
+                        </button>
+                        <a href="${m.link}" target="_blank" rel="noopener noreferrer" class="text-xs font-semibold text-mbu-blue hover:text-mbu-navy flex items-center gap-1">
+                            Access Document <i class="fa-solid fa-arrow-up-right-from-square text-[10px]"></i>
+                        </a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function saveModule(e) {
+            e.preventDefault();
+            const newMod = {
+                id: Date.now(),
+                title: document.getElementById('modTitle').value,
+                category: document.getElementById('modCategory').value,
+                description: document.getElementById('modDesc').value,
+                link: document.getElementById('modLink').value,
+                youtube: document.getElementById('modYoutube').value.trim() || null
+            };
+            state.modules.push(newMod);
+            localStorage.setItem('mbu_modules', JSON.stringify(state.modules));
+            renderModules();
+            updateStats();
+            toggleModal('addModuleModal', false);
+            e.target.reset();
+            showToast('New module added successfully!');
+        }
+
+        /* ================= PDF FLIPBOOK VIEWER ================= */
+        let activeFlipbookModule = null;
+        let activeFlipbookDocument = null;
+        let activeFlipbookPage = 1;
+        let flipbookIsTurning = false;
+        let activeFlipbookUrl = '';
+        let activeFlipbookObjectUrl = null;
+        let flipbookScrollPosition = 0;
+        let flipbookLoadId = 0;
+        let flipbookResizeTimer = null;
+
+        async function openModuleFlipbook(moduleId) {
+            activeFlipbookModule = state.modules.find(module => String(module.id) === String(moduleId));
+            if (!activeFlipbookModule) {
+                showToast('This module could not be found.', 'error');
+                return;
+            }
+            await openPdfReader(activeFlipbookModule.link, activeFlipbookModule.title);
+        }
+
+        async function openPdfReader(pdfUrl, title = 'PDF Document') {
+            if (!window.pdfjsLib) {
+                showToast('The PDF reader could not load. Check your internet connection and try again.', 'error');
+                return;
+            }
+
+            const loadId = ++flipbookLoadId;
+            flipbookIsTurning = false;
+            activeFlipbookUrl = pdfUrl;
+            if (activeFlipbookObjectUrl) {
+                URL.revokeObjectURL(activeFlipbookObjectUrl);
+                activeFlipbookObjectUrl = null;
+            }
+            const modal = document.getElementById('flipbookModal');
+            if (modal.classList.contains('hidden')) flipbookScrollPosition = window.scrollY;
+            modal.classList.remove('hidden');
+            document.body.classList.add('overflow-hidden');
+            document.getElementById('flipbookTitle').textContent = title;
+            document.getElementById('flipbookFileHint').textContent = '';
+            document.getElementById('flipbookOriginal').href = pdfUrl;
+            showFlipbookStatus('Loading PDF...');
+            activeFlipbookPage = 1;
+            const previousDocument = activeFlipbookDocument;
+            activeFlipbookDocument = null;
+            if (previousDocument) await previousDocument.destroy();
+            if (loadId !== flipbookLoadId) return;
+
+            try {
+                const resolvedUrl = new URL(pdfUrl, window.location.href);
+                if (resolvedUrl.protocol === 'file:') {
+                    const expectedName = decodeURIComponent(resolvedUrl.pathname.split('/').pop() || 'PDF file');
+                    document.getElementById('flipbookFileHint').textContent = expectedName;
+                    document.getElementById('flipbookFileInput').click();
+                    return;
+                }
+                await loadFlipbookDocument({ url: resolvedUrl.href }, loadId);
+            } catch (error) {
+                if (loadId !== flipbookLoadId) return;
+                console.error('Could not open PDF:', error);
+                showFlipbookStatus('This PDF could not be loaded. Check that the file exists and that its server allows access from this website.');
+            }
+        }
+
+        async function handleFlipbookFile(event) {
+            const file = event.target.files[0];
+            event.target.value = '';
+            if (!file) return;
+            if (file.type !== 'application/pdf' && !file.name.toLowerCase().endsWith('.pdf')) {
+                showFlipbookStatus('That file is not a PDF. Please choose a PDF file.');
+                return;
+            }
+            document.getElementById('flipbookFileHint').textContent = file.name;
+            showFlipbookStatus('Loading PDF...');
+            const loadId = ++flipbookLoadId;
+            try {
+                const fileData = await file.arrayBuffer();
+                if (loadId !== flipbookLoadId) return;
+                if (activeFlipbookObjectUrl) URL.revokeObjectURL(activeFlipbookObjectUrl);
+                activeFlipbookObjectUrl = URL.createObjectURL(file);
+                document.getElementById('flipbookOriginal').href = activeFlipbookObjectUrl;
+                await loadFlipbookDocument({ data: fileData }, loadId);
+            } catch (error) {
+                if (loadId !== flipbookLoadId) return;
+                console.error('Could not load selected PDF:', error);
+                showFlipbookStatus('This PDF could not be read. Try opening another copy of the file.');
+            }
+        }
+
+        async function loadFlipbookDocument(source, loadId = flipbookLoadId) {
+            const documentProxy = await pdfjsLib.getDocument(source).promise;
+            if (loadId !== flipbookLoadId) {
+                await documentProxy.destroy();
+                return;
+            }
+            if (activeFlipbookDocument) await activeFlipbookDocument.destroy();
+            activeFlipbookDocument = documentProxy;
+            activeFlipbookPage = 1;
+            await renderFlipbookSpread();
+        }
+
+        function isFlipbookSinglePageMode() {
+            const stage = document.getElementById('flipbookReaderStage');
+            return window.matchMedia('(max-width: 640px)').matches || stage.clientWidth < 680;
+        }
+
+        function getFlipbookSpreadPages(startPage = activeFlipbookPage) {
+            if (!activeFlipbookDocument) return [];
+            const pages = [startPage];
+            if (!isFlipbookSinglePageMode() && startPage + 1 <= activeFlipbookDocument.numPages) {
+                pages.push(startPage + 1);
+            }
+            return pages;
+        }
+
+        async function renderFlipbookSpread() {
+            if (!activeFlipbookDocument) return;
+            const loadId = flipbookLoadId;
+            const spread = document.getElementById('flipbookSpread');
+            const book = document.getElementById('flipbookBook');
+            const stage = document.getElementById('flipbookReaderStage');
+            const mobile = isFlipbookSinglePageMode();
+            const pageCanvases = [
+                document.getElementById('flipbookCanvasLeft'),
+                document.getElementById('flipbookCanvasRight')
+            ];
+            const pages = getFlipbookSpreadPages();
+            spread.classList.toggle('is-single-page', mobile || activeFlipbookDocument.numPages === 1);
+            spread.classList.toggle('is-single-document-page', activeFlipbookDocument.numPages === 1);
+            pageCanvases.forEach((canvas, index) => {
+                const shouldShow = pages[index] !== undefined && !(activeFlipbookDocument.numPages === 1 && index === 1);
+                canvas.parentElement.style.display = shouldShow ? 'flex' : 'none';
+                if (!shouldShow) {
+                    canvas.width = 1;
+                    canvas.height = 1;
+                }
+            });
+            book.classList.remove('hidden');
+            const availableWidth = Math.max(stage.clientWidth - 40, 240);
+            const availableHeight = Math.max(stage.clientHeight - 36, 180);
+            const pageLimitWidth = mobile || activeFlipbookDocument.numPages === 1 ? availableWidth - 8 : (availableWidth - 12) / 2;
+            const firstPage = await activeFlipbookDocument.getPage(activeFlipbookPage);
+            if (loadId !== flipbookLoadId) return;
+            const baseViewport = firstPage.getViewport({ scale: 1 });
+            const scale = Math.min(pageLimitWidth / baseViewport.width, availableHeight / baseViewport.height, 2);
+            const targetHeight = Math.max(1, Math.floor(baseViewport.height * scale));
+            const targetWidth = Math.max(1, Math.floor(baseViewport.width * scale));
+            spread.style.width = `${mobile || activeFlipbookDocument.numPages === 1 ? targetWidth : targetWidth * 2}px`;
+            spread.style.height = `${targetHeight}px`;
+
+            const visibleCanvases = mobile ? [pageCanvases[0]] : pageCanvases;
+            for (let index = 0; index < pages.length; index++) {
+                const canvasIndex = mobile ? 0 : index;
+                await renderFlipbookCanvas(pages[index], visibleCanvases[canvasIndex], targetWidth, targetHeight, loadId);
+                if (loadId !== flipbookLoadId) return;
+            }
+            if (mobile) {
+                pageCanvases[1].parentElement.style.display = 'none';
+            } else if (pages.length === 1 && activeFlipbookDocument.numPages > 1) {
+                pageCanvases[1].parentElement.style.display = 'flex';
+                pageCanvases[1].width = targetWidth;
+                pageCanvases[1].height = targetHeight;
+                pageCanvases[1].style.width = `${targetWidth}px`;
+                pageCanvases[1].style.height = `${targetHeight}px`;
+            }
+            spread.classList.toggle('is-single-page', mobile || activeFlipbookDocument.numPages === 1);
+            document.getElementById('flipbookTurnSheet').classList.remove('is-visible', 'is-turning', 'is-turning-backward');
+            document.getElementById('flipbookStatus').classList.add('hidden');
+            const lastPage = pages[pages.length - 1] || activeFlipbookPage;
+            document.getElementById('flipbookPageCount').textContent = `Pages ${activeFlipbookPage}–${lastPage} of ${activeFlipbookDocument.numPages}`;
+            document.getElementById('flipbookPrev').disabled = activeFlipbookPage <= 1;
+            document.getElementById('flipbookNext').disabled = lastPage >= activeFlipbookDocument.numPages;
+        }
+
+        async function renderFlipbookCanvas(pageNumber, canvas, targetWidth, targetHeight, loadId = flipbookLoadId) {
+            const page = await activeFlipbookDocument.getPage(pageNumber);
+            const baseViewport = page.getViewport({ scale: 1 });
+            const scale = Math.min(targetWidth / baseViewport.width, targetHeight / baseViewport.height);
+            const viewport = page.getViewport({ scale: Math.max(scale, 0.1) });
+            if (loadId !== flipbookLoadId) return;
+            const context = canvas.getContext('2d');
+            canvas.width = Math.ceil(viewport.width);
+            canvas.height = Math.ceil(viewport.height);
+            canvas.style.width = `${Math.ceil(viewport.width)}px`;
+            canvas.style.height = `${Math.ceil(viewport.height)}px`;
+            await page.render({ canvasContext: context, viewport }).promise;
+        }
+
+        function showFlipbookStatus(message) {
+            document.getElementById('flipbookBook').classList.add('hidden');
+            const status = document.getElementById('flipbookStatus');
+            status.textContent = message;
+            status.classList.remove('hidden');
+            document.getElementById('flipbookPageCount').textContent = activeFlipbookDocument
+                ? `Pages 0–0 of ${activeFlipbookDocument.numPages}`
+                : 'Pages 0–0 of 0';
+            document.getElementById('flipbookPrev').disabled = true;
+            document.getElementById('flipbookNext').disabled = true;
+        }
+
+        async function turnFlipbookPage(direction) {
+            if (!activeFlipbookDocument || flipbookIsTurning) return;
+            const step = isFlipbookSinglePageMode() ? 1 : 2;
+            const nextPage = activeFlipbookPage + (direction * step);
+            if (nextPage < 1 || nextPage > activeFlipbookDocument.numPages) return;
+
+            flipbookIsTurning = true;
+            document.getElementById('flipbookPrev').disabled = true;
+            document.getElementById('flipbookNext').disabled = true;
+            const turnSheet = document.getElementById('flipbookTurnSheet');
+            const frontCanvases = [
+                document.getElementById('flipbookTurnFrontLeft'),
+                document.getElementById('flipbookTurnFrontRight')
+            ];
+            const backCanvases = [
+                document.getElementById('flipbookTurnBackLeft'),
+                document.getElementById('flipbookTurnBackRight')
+            ];
+            const currentCanvases = [
+                document.getElementById('flipbookCanvasLeft'),
+                document.getElementById('flipbookCanvasRight')
+            ];
+            const turnClass = direction > 0 ? 'is-turning' : 'is-turning-backward';
+            try {
+                const loadId = flipbookLoadId;
+                currentCanvases.forEach((canvas, index) => {
+                    frontCanvases[index].width = canvas.width;
+                    frontCanvases[index].height = canvas.height;
+                    if (canvas.width > 1 && canvas.height > 1) {
+                        frontCanvases[index].getContext('2d').drawImage(canvas, 0, 0);
+                    }
+                });
+                const nextPages = getFlipbookSpreadPages(nextPage);
+                const targetWidth = parseInt(document.getElementById('flipbookSpread').style.width, 10) / (isFlipbookSinglePageMode() ? 1 : 2);
+                const targetHeight = parseInt(document.getElementById('flipbookSpread').style.height, 10);
+                for (let index = 0; index < 2; index++) {
+                    backCanvases[index].parentElement.style.display = nextPages[index] === undefined ? 'none' : 'flex';
+                    if (nextPages[index] !== undefined) {
+                        await renderFlipbookCanvas(nextPages[index], backCanvases[index], targetWidth, targetHeight, loadId);
+                    }
+                }
+                if (loadId !== flipbookLoadId) return;
+                turnSheet.classList.add('is-visible');
+                turnSheet.getBoundingClientRect();
+                await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+                turnSheet.classList.add(turnClass);
+                await new Promise(resolve => setTimeout(resolve, 650));
+                activeFlipbookPage = nextPage;
+                await renderFlipbookSpread();
+            } catch (error) {
+                console.error('Could not turn PDF page:', error);
+                showToast('This PDF page could not be displayed.', 'error');
+            } finally {
+                turnSheet.classList.remove('is-visible', turnClass);
+                flipbookIsTurning = false;
+                if (activeFlipbookDocument) {
+                    document.getElementById('flipbookPrev').disabled = activeFlipbookPage <= 1;
+                    const pages = getFlipbookSpreadPages();
+                    document.getElementById('flipbookNext').disabled = pages[pages.length - 1] >= activeFlipbookDocument.numPages;
+                }
+            }
+        }
+
+        async function closeFlipbook() {
+            flipbookLoadId++;
+            flipbookIsTurning = false;
+            document.getElementById('flipbookModal').classList.add('hidden');
+            document.body.classList.remove('overflow-hidden');
+            const documentToClose = activeFlipbookDocument;
+            activeFlipbookDocument = null;
+            if (activeFlipbookObjectUrl) {
+                URL.revokeObjectURL(activeFlipbookObjectUrl);
+                activeFlipbookObjectUrl = null;
+            }
+            document.getElementById('flipbookOriginal').removeAttribute('href');
+            document.getElementById('flipbookTitle').textContent = 'PDF Flipbook';
+            document.getElementById('flipbookFileHint').textContent = '';
+            document.getElementById('flipbookTurnSheet').classList.remove('is-visible', 'is-turning', 'is-turning-backward');
+            document.getElementById('flipbookCanvasLeft').width = 1;
+            document.getElementById('flipbookCanvasRight').width = 1;
+            document.getElementById('flipbookCanvasLeft').height = 1;
+            document.getElementById('flipbookCanvasRight').height = 1;
+            if (documentToClose) await documentToClose.destroy();
+            activeFlipbookUrl = '';
+            activeFlipbookPage = 1;
+            activeFlipbookModule = null;
+            showFlipbookStatus('Select a PDF link to open the reader.');
+            window.scrollTo({ top: flipbookScrollPosition, behavior: 'instant' });
+        }
+
+        function initPdfReaderEvents() {
+            document.addEventListener('click', event => {
+                const anchor = event.target.closest('a[href]');
+                if (!anchor || anchor.hasAttribute('download') || anchor.id === 'flipbookOriginal' || anchor.closest('#flipbookModal')) return;
+                let url;
+                try {
+                    url = new URL(anchor.href, window.location.href);
+                } catch {
+                    return;
+                }
+                if (!/\.pdf$/i.test(url.pathname)) return;
+                event.preventDefault();
+                const title = anchor.dataset.pdfTitle
+                    || anchor.querySelector('h2, h3, h4')?.textContent.trim()
+                    || anchor.closest('article, .bg-white, .rounded-xl')?.querySelector('h2, h3, h4')?.textContent.trim()
+                    || decodeURIComponent(url.pathname.split('/').pop()).replace(/\.pdf$/i, '')
+                    || 'PDF Document';
+                openPdfReader(url.href, title);
+            });
+            document.addEventListener('keydown', event => {
+                if (document.getElementById('flipbookModal').classList.contains('hidden')) return;
+                const target = event.target;
+                if (target instanceof HTMLElement && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(target.tagName))) {
+                    if (event.key !== 'Escape') return;
+                }
+                if (event.key === 'ArrowLeft') {
+                    event.preventDefault();
+                    turnFlipbookPage(-1);
+                } else if (event.key === 'ArrowRight') {
+                    event.preventDefault();
+                    turnFlipbookPage(1);
+                } else if (event.key === 'Escape') {
+                    event.preventDefault();
+                    closeFlipbook();
+                }
+            });
+            window.addEventListener('resize', () => {
+                if (document.getElementById('flipbookModal').classList.contains('hidden') || !activeFlipbookDocument) return;
+                clearTimeout(flipbookResizeTimer);
+                flipbookResizeTimer = setTimeout(() => renderFlipbookSpread().catch(error => {
+                    console.error('Could not resize PDF pages:', error);
+                    showFlipbookStatus('The PDF pages could not be resized.');
+                }), 120);
+            });
+        }
+
+        /* ================= TOOLS LOGIC ================= */
+        function renderTools(filterCategory) {
+            const container = document.getElementById('toolsContainer');
+            const list = filterCategory === 'All' ? state.tools : state.tools.filter(t => t.category === filterCategory);
+            
+            container.innerHTML = list.map(t => `
+                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:border-slate-300 transition flex items-start space-x-4">
+                    <div class="p-3 rounded-lg bg-slate-50 text-2xl flex-shrink-0">
+                        <i class="fa-solid ${t.icon}"></i>
+                    </div>
+                    <div>
+                        <div class="flex items-center space-x-2">
+                            <h3 class="font-bold text-slate-800 text-sm">${t.name}</h3>
+                            <span class="text-[10px] font-semibold px-2 py-0.2 rounded bg-slate-100 text-slate-600">${t.category}</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-1 leading-relaxed">${t.desc}</p>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterTools(category) {
+            document.querySelectorAll('.tool-filter-btn').forEach(btn => {
+                if(btn.innerText.trim() === category || (category === 'ML/DL' && btn.innerText.includes('ML'))) {
+                    btn.className = "tool-filter-btn active bg-mbu-navy text-white text-xs px-3 py-1.5 rounded-full font-medium transition";
+                } else {
+                    btn.className = "tool-filter-btn bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs px-3 py-1.5 rounded-full font-medium transition";
+                }
+            });
+            renderTools(category);
+        }
+
+        /* ================= RESOURCES LOGIC ================= */
+        function renderResources() {
+            const container = document.getElementById('resourcesContainer');
+            container.innerHTML = state.resources.map(r => `
+                <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm flex flex-col justify-between">
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <span class="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">${r.type}</span>
+                            <i class="fa-solid fa-file-lines text-slate-300"></i>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-base">${r.title}</h3>
+                        <p class="text-xs text-slate-600 leading-relaxed">${r.desc}</p>
+                    </div>
+                    <div class="mt-4 pt-3 border-t border-slate-100">
+                        <a href="${r.url}" target="_blank" class="text-xs font-semibold text-mbu-blue hover:underline inline-flex items-center gap-1">
+                            <i class="fa-solid fa-link text-[10px]"></i> Open Resource Link
+                        </a>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function saveResource(e) {
+            e.preventDefault();
+            const newRes = {
+                id: Date.now(),
+                title: document.getElementById('resTitle').value,
+                type: document.getElementById('resType').value,
+                url: document.getElementById('resUrl').value,
+                desc: document.getElementById('resDesc').value
+            };
+            state.resources.push(newRes);
+            localStorage.setItem('mbu_resources', JSON.stringify(state.resources));
+            renderResources();
+            updateStats();
+            toggleModal('addResourceModal', false);
+            e.target.reset();
+            showToast('Resource saved to Digital Library!');
+        }
+
+        /* ================= LAB EXPERIMENTS LOGIC ================= */
+        function renderLabs() {
+            const sidebar = document.getElementById('labList');
+            sidebar.innerHTML = labExperiments.map((lab, index) => `
+                <button onclick="selectLab(${index})" class="w-full text-left p-3 rounded-lg text-xs font-semibold transition flex items-center space-x-2 ${state.activeLabIndex === index ? 'bg-mbu-navy text-white shadow-sm' : 'hover:bg-slate-100 text-slate-700'}">
+                    <i class="fa-solid fa-flask-vial"></i>
+                    <span class="truncate">${lab.title.split(':')[0]}</span>
+                </button>
+            `).join('');
+
+            const lab = labExperiments[state.activeLabIndex];
+            const detailView = document.getElementById('labDetailView');
+            detailView.innerHTML = `
+                <div class="space-y-5">
+                    <div class="border-b border-slate-100 pb-3">
+                        <h3 class="text-xl font-bold text-slate-900">${lab.title}</h3>
+                        <p class="text-xs text-mbu-blue font-semibold mt-1"><i class="fa-solid fa-database"></i> Recommended Dataset: ${lab.dataset}</p>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Experiment Objective</h4>
+                        <p class="text-sm text-slate-700 leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-200">${lab.objective}</p>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Reference Python Code</h4>
+                        <div class="bg-slate-900 text-slate-200 rounded-lg p-4 font-mono text-xs overflow-x-auto shadow-inner border border-slate-800">
+                            <pre><code>${escapeHtml(lab.code)}</code></pre>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function selectLab(index) {
+            state.activeLabIndex = index;
+            renderLabs();
+        }
+
+        /* ================= ASSIGNMENT / SANDBOX LOGIC ================= */
+        function initAssignments() {
+            const select = document.getElementById('assignmentSelect');
+            select.innerHTML = assignmentsList.map(a => `
+                <option value="${a.id}">${a.badge}: ${a.title}</option>
+            `).join('');
+
+            loadAssignmentProblem();
+        }
+
+        function loadAssignmentProblem() {
+            const selectedId = document.getElementById('assignmentSelect').value;
+            state.activeAssignmentId = selectedId;
+            const prob = assignmentsList.find(a => a.id === selectedId);
+
+            document.getElementById('assignmentBadge').innerText = prob.badge;
+            document.getElementById('assignmentTitle').innerText = prob.title;
+            document.getElementById('assignmentDesc').innerText = prob.desc;
+            
+            const reqContainer = document.getElementById('assignmentRequirements');
+            reqContainer.innerHTML = prob.reqs.map(r => `<li>${r}</li>`).join('');
+
+            // Check if user has saved code, else fallback to starter code
+            const saved = state.assignments[selectedId];
+            if(saved) {
+                document.getElementById('codeEditor').value = saved.code;
+                document.getElementById('assignmentStatus').innerText = 'Submitted';
+                document.getElementById('assignmentStatus').className = 'text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-700';
+            } else {
+                document.getElementById('codeEditor').value = prob.starterCode;
+                document.getElementById('assignmentStatus').innerText = 'Not Submitted';
+                document.getElementById('assignmentStatus').className = 'text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-600';
+            }
+
+            document.getElementById('consoleOutput').innerText = 'Ready to execute script...';
+        }
+
+        function resetAssignmentCode() {
+            const prob = assignmentsList.find(a => a.id === state.activeAssignmentId);
+            if (prob) {
+                document.getElementById('codeEditor').value = prob.starterCode;
+                showToast('Code reset to template default');
+            }
+        }
+
+        function runCode() {
+            const code = document.getElementById('codeEditor').value;
+            const consoleBox = document.getElementById('consoleOutput');
+            consoleBox.innerText = "Executing in JavaScript/Python environment runtime...\n";
+
+            // Simulating execution by intercepting standard console log outputs inside an isolated evaluation scope
+            let logs = [];
+            const customConsole = {
+                log: (...args) => logs.push(args.map(a => (typeof a === 'object' ? JSON.stringify(a) : a)).join(' ')),
+                error: (...args) => logs.push("[ERROR] " + args.join(' '))
+            };
+
+            try {
+                // Convert simple Python syntax constructs to JS equivalents for smooth in-browser runner execution
+                let runnableJs = code
+                    .replace(/print\((.*?)\)/g, 'customConsole.log($1)')
+                    .replace(/def (.*?):/g, 'function $1 {')
+                    .replace(/#.*/g, ''); // strip simple comments
+
+                // Safe Function Execution wrapper
+                const runFunc = new Function('customConsole', runnableJs);
+                runFunc(customConsole);
+
+                if(logs.length > 0) {
+                    consoleBox.innerText = logs.join('\n') + "\n\n[Process completed with exit code 0]";
+                } else {
+                    consoleBox.innerText = "Code executed successfully with no print output.";
+                }
+            } catch (err) {
+                consoleBox.innerText = `Runtime Execution Exception:\n${err.message}`;
+            }
+        }
+
+        function submitAssignment() {
+            const code = document.getElementById('codeEditor').value;
+            const id = state.activeAssignmentId;
+
+            state.assignments[id] = {
+                code: code,
+                submittedAt: new Date().toISOString()
+            };
+
+            localStorage.setItem('mbu_assignments', JSON.stringify(state.assignments));
+
+            document.getElementById('assignmentStatus').innerText = 'Submitted';
+            document.getElementById('assignmentStatus').className = 'text-xs font-semibold px-2 py-0.5 rounded bg-emerald-100 text-emerald-700';
+
+            showToast('Assignment submitted & saved locally!');
+        }
+
+        function clearConsole() {
+            document.getElementById('consoleOutput').innerText = '';
+        }
+
+        /* ================= PROFILE LOGIC ================= */
+        function renderProfile() {
+            const p = state.profile;
+            document.getElementById('profileNameDisplay').innerText = p.name;
+            document.getElementById('profileRollDisplay').innerText = p.roll || 'Not provided';
+            document.getElementById('profileSemDisplay').innerText = p.semester || 'Not provided';
+            document.getElementById('profileFacultyDisplay').innerText = p.faculty || 'Not provided';
+            document.getElementById('profileDegreeDisplay').innerText = p.degree || 'Not provided';
+            document.getElementById('profileBranchDisplay').innerText = p.branch || 'Not provided';
+            document.getElementById('profileSpecializationDisplay').innerText = p.specialization || 'Not provided';
+            document.getElementById('profileSectionDisplay').innerText = p.section || 'Not provided';
+            document.getElementById('profileImageDisplay').src = p.photo;
+
+            // Header profile updates
+            document.getElementById('navStudentName').innerText = p.name.split(' ')[0];
+            document.getElementById('navAvatar').src = p.photo;
+
+            // Populate form fields
+            document.getElementById('inputName').value = p.name;
+            document.getElementById('inputRoll').value = p.roll;
+            document.getElementById('inputEmail').value = p.email;
+            document.getElementById('inputSem').value = p.semester;
+            document.getElementById('inputDegree').value = p.degree;
+            document.getElementById('inputBranch').value = p.branch;
+            document.getElementById('inputSpecialization').value = p.specialization;
+            document.getElementById('inputFaculty').value = p.faculty;
+            document.getElementById('inputSection').value = p.section;
+        }
+
+        function saveProfile(e) {
+            e.preventDefault();
+            state.profile.name = document.getElementById('inputName').value;
+            state.profile.roll = document.getElementById('inputRoll').value;
+            state.profile.email = document.getElementById('inputEmail').value;
+            state.profile.semester = document.getElementById('inputSem').value;
+            state.profile.degree = document.getElementById('inputDegree').value;
+            state.profile.branch = document.getElementById('inputBranch').value;
+            state.profile.specialization = document.getElementById('inputSpecialization').value;
+            state.profile.faculty = document.getElementById('inputFaculty').value;
+            state.profile.section = document.getElementById('inputSection').value;
+            state.profile.program = `${state.profile.degree} ${state.profile.branch} (${state.profile.specialization})`;
+            state.profile.department = `${state.profile.branch} (${state.profile.specialization})`;
+
+            localStorage.setItem('mbu_profile', JSON.stringify(state.profile));
+            renderProfile();
+            showToast('Profile information saved!');
+        }
+
+        function handlePhotoUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    state.profile.photo = e.target.result;
+                    localStorage.setItem('mbu_profile', JSON.stringify(state.profile));
+                    renderProfile();
+                    showToast('Profile photo updated!');
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        /* ================= UTILITY HELPERS ================= */
+        function toggleModal(modalId, show) {
+            const modal = document.getElementById(modalId);
+            if (show) modal.classList.remove('hidden');
+            else modal.classList.add('hidden');
+        }
+
+        function escapeHtml(text) {
+            return text
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
